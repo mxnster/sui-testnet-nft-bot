@@ -26,7 +26,7 @@ const nftArray = [[
 
 function parseFile(file) {
     let data = fs.readFileSync(file, "utf8");
-    let array = data.split('\r\n');
+    let array = data.split('\n').map(str => str.trim()).filter(str => str.length > 3);
 
     return array.map(proxy => ({ "ip": `http://${proxy.split("@")[1]}@${proxy.split("@")[0]}`, "limited": false }))
 }
@@ -46,7 +46,7 @@ async function requestSuiFromFaucet(proxy, recipient) {
         }),
         method: "POST"
     }).catch(err => {
-        console.log('Faucet error:', err.response.statusText)
+        console.log('Faucet error:', err?.response?.statusText)
 
         if (err.response.status == 429) {
             proxy.limited = true;
@@ -78,9 +78,7 @@ async function mintNft(signer, args) {
         for (let i = 0; i < proxyList.length; i++) {
             try {
                 const mnemonic = bip39.generateMnemonic()
-
                 console.log(`Mnemonic: ${mnemonic}`);
-                saveMnemonic(mnemonic);
 
                 const keypair = Ed25519Keypair.deriveKeypair(mnemonic);
                 const address = keypair.getPublicKey().toSuiAddress()
@@ -89,6 +87,7 @@ async function mintNft(signer, args) {
                 let response = await requestSuiFromFaucet(proxyList[i], address)
 
                 if (response) {
+                    saveMnemonic(mnemonic);
                     const signer = new RawSigner(keypair, provider);
 
                     for (let i = 0; i < nftArray.length; i++) {
