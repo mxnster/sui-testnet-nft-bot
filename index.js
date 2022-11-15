@@ -48,12 +48,13 @@ async function requestSuiFromFaucet(proxy, recipient) {
     }).catch(err => {
         console.log('Faucet error:', err?.response?.statusText)
 
-        if (err.response.status == 429) {
+        if (err?.response?.status == 429) {
             proxy.limited = true;
         }
     })
 
     console.log(`Faucet request status: ${res?.statusText}`);
+    
     return res?.data
 }
 
