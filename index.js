@@ -79,9 +79,6 @@ async function mintNft(signer, args) {
             try {
                 const mnemonic = bip39.generateMnemonic()
 
-                console.log(`Mnemonic: ${mnemonic}`);
-                saveMnemonic(mnemonic);
-
                 const keypair = Ed25519Keypair.deriveKeypair(mnemonic);
                 const address = keypair.getPublicKey().toSuiAddress()
                 console.log(`Sui Address: 0x${address}`)
@@ -89,6 +86,10 @@ async function mintNft(signer, args) {
                 let response = await requestSuiFromFaucet(proxyList[i], address)
 
                 if (response) {
+
+                    console.log(`Mnemonic: ${mnemonic}`);
+                    saveMnemonic(mnemonic);
+
                     const signer = new RawSigner(keypair, provider);
 
                     for (let i = 0; i < nftArray.length; i++) {
