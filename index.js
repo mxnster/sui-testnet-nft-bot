@@ -77,8 +77,8 @@ async function checkProxy(proxy) {
         }).then(res => {
             return proxy;
         }).catch(err => {
-            console.log('Proxy check error:', err.response.statusText)
-            switch (err.response.status) {
+            console.log('Proxy check error:', err?.response?.statusText)
+            switch (err?.response?.status) {
                 case 407: proxy.authFailed = true;
                 case 429: proxy.limited = true;
             }
@@ -117,9 +117,9 @@ async function requestSuiFromFaucet(proxy, recipient) {
         }),
         method: "POST",
     }).catch(err => {
-        console.log('Faucet error:', err.response.statusText)
+        console.log('Faucet error:', err?.response?.statusText)
 
-        switch (err.response.status) {
+        switch (err?.response?.status) {
             case 407: proxy.authFailed = true;
             case 429: proxy.limited = true;
         }
