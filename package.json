@@ -9,6 +9,9 @@
     "NFT",
     "testnet"
   ],
+  "scripts": {
+    "start": "node index.js"
+  },
   "author": "https://t.me/cryptolbs",
   "license": "ISC",
   "dependencies": {
