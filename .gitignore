@@ -1,5 +1,7 @@
 node_modules
 mnemonic.txt
 proxy.txt
+package-lock.json
+pnpm-lock.yaml
 
 .vs
