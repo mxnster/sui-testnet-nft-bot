@@ -28,5 +28,5 @@ npm install
 ```
 6) Start
 ```bash
-node index
+npm run start
 ```
