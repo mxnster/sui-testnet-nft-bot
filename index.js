@@ -26,9 +26,17 @@ const nftArray = [[
 
 function parseFile(file) {
     let data = fs.readFileSync(file, "utf8");
-    let array = data.split('\n').map(str => str.trim()).filter(str => str.length > 3);
+    let array = data.split('\n').map(str => str.trim());
+    const proxyRegex = /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})@(\w+):(\w+)/;
+    let proxyLists = [];
 
-    return array.map(proxy => ({ "ip": `http://${proxy.split("@")[1]}@${proxy.split("@")[0]}`, "limited": false }))
+    array.forEach(proxy => {
+        if (proxy.match(proxyRegex)) {
+            proxyLists.push({ "ip": `http://${proxy.split("@")[1]}@${proxy.split("@")[0]}`, "limited": false })
+        }
+    })
+
+    return proxyLists
 }
 
 function saveMnemonic(mnemonic) {
@@ -36,25 +44,24 @@ function saveMnemonic(mnemonic) {
 }
 
 async function requestSuiFromFaucet(proxy, recipient) {
-    console.log(`Requesting sui from faucet with proxy ${proxy.ip.split("@")[1]}`);
+    console.log(`Requesting SUI from faucet with proxy ${proxy.ip.split("@")[1]}`);
     const axiosInstance = axios.create({ httpsAgent: HttpsProxyAgent(proxy.ip) })
 
     let res = await axiosInstance("https://faucet.testnet.sui.io/gas", {
         headers: { 'Content-Type': 'application/json' },
-        data: JSON.stringify({
-            FixedAmountRequest: { recipient },
-        }),
+        data: JSON.stringify({ FixedAmountRequest: { recipient } }),
         method: "POST"
-    }).catch(err => {
-        console.log('Faucet error:', err?.response?.statusText)
+    }).catch(async err => {
+        console.log('Faucet error:', err?.response?.statusText || err.code)
 
         if (err?.response?.status == 429) {
             proxy.limited = true;
+            console.log(`Proxy rate limited, need to wait ${err.response.headers['retry-after']} seconds`);
         }
     })
 
-    console.log(`Faucet request status: ${res?.statusText}`);
-    
+    res?.data && console.log(`Faucet request status: ${res?.statusText}`);
+
     return res?.data
 }
 
@@ -74,34 +81,36 @@ async function mintNft(signer, args) {
 
 (async () => {
     let proxyList = parseFile('proxy.txt');
+    console.log(`Found ${proxyList.length} proxy`);
 
-    while (proxyList.every(proxy => !proxy.limited)) {
-        for (let i = 0; i < proxyList.length; i++) {
-            try {
-                const mnemonic = bip39.generateMnemonic()
+    if (proxyList.length > 0) {
+        while (proxyList.every(proxy => !proxy.limited)) {
+            for (let i = 0; i < proxyList.length; i++) {
+                try {
+                    const mnemonic = bip39.generateMnemonic()
+                    const keypair = Ed25519Keypair.deriveKeypair(mnemonic);
+                    const address = keypair.getPublicKey().toSuiAddress()
 
-                const keypair = Ed25519Keypair.deriveKeypair(mnemonic);
-                const address = keypair.getPublicKey().toSuiAddress()
-                console.log(`Sui Address: 0x${address}`)
+                    let response = await requestSuiFromFaucet(proxyList[i], address)
 
-                let response = await requestSuiFromFaucet(proxyList[i], address)
+                    if (response) {
+                        console.log(`Sui Address: 0x${address}`)
+                        console.log(`Mnemonic: ${mnemonic}`);
+                        saveMnemonic(mnemonic);
+                        const signer = new RawSigner(keypair, provider);
 
-                if (response) {
-                    console.log(`Mnemonic: ${mnemonic}`);
-                    saveMnemonic(mnemonic);
-                    const signer = new RawSigner(keypair, provider);
+                        for (let i = 0; i < nftArray.length; i++) {
+                            await mintNft(signer, nftArray[i])
+                        }
 
-                    for (let i = 0; i < nftArray.length; i++) {
-                        await mintNft(signer, nftArray[i])
+                        console.log(`Result: https://explorer.sui.io/addresses/${address}?network=testnet`);
                     }
-
-                    console.log(`Result: https://explorer.sui.io/addresses/${address}?network=testnet`);
+                    console.log("-".repeat(100));
+                } catch (err) {
+                    console.log(err.message);
+                    await timeout(10000)
                 }
-                console.log("-".repeat(100));
-            } catch (err) {
-                console.log(err.message);
-                await timeout(10000)
             }
         }
-    }
+    } else console.log('No working proxy found, please make sure the proxy is in the correct format');
 })()
