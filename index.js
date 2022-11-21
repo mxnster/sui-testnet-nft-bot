@@ -22,6 +22,10 @@ const nftArray = [[
     'Wizard Land',
     'Expanding The Magic Land',
     'https://gateway.pinata.cloud/ipfs/QmYfw8RbtdjPAF3LrC6S3wGVwWgn6QKq4LGS4HFS55adU2?w=800&h=450&c=crop',
+], [
+    'Ethos 2048 Game',
+    'This player has unlocked the 2048 tile on Ethos 2048. They are a Winner!',
+    'https://arweave.net/QW9doLmmWdQ-7t8GZ85HtY8yzutoir8lGEJP9zOPQqA',
 ]]
 
 function parseFile(file) {
