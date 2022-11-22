@@ -26,6 +26,18 @@ const nftArray = [[
     'Ethos 2048 Game',
     'This player has unlocked the 2048 tile on Ethos 2048. They are a Winner!',
     'https://arweave.net/QW9doLmmWdQ-7t8GZ85HtY8yzutoir8lGEJP9zOPQqA',
+], [
+    "Sample NFT 1",
+    "Sample NFT",
+    "https://cdn.martianwallet.xyz/assets/sample-nft.png"
+], [
+    "Sui Test Ecosystem",
+    "Get ready for the Suinami 🌊",
+    "ipfs://QmVnWhM2qYr9JkjGLaEVSZnCprRLDW8qns1oYYVXjnb4DA/sui.jpg"
+], [
+    "Skull Sui",
+    "Skulls are emerging from the ground!",
+    "https://gateway.pinata.cloud/ipfs/QmcsJtucGrzkup9cZp2N8vvTc9zxuQtV85z3g2Rs4YRLGX"
 ]]
 
 function parseFile(file) {
@@ -36,7 +48,7 @@ function parseFile(file) {
 
     array.forEach(proxy => {
         if (proxy.match(proxyRegex)) {
-            proxyLists.push({ "ip": `http://${proxy.split("@")[1]}@${proxy.split("@")[0]}`, "limited": false })
+            proxyLists.push({ "ip": `http://${proxy.split("@")[1]}@${proxy.split("@")[0]}`, "limited": false, "authFailed": false })
         }
     })
 
@@ -45,6 +57,23 @@ function parseFile(file) {
 
 function saveMnemonic(mnemonic) {
     fs.appendFileSync("mnemonic.txt", `${mnemonic}\n`, "utf8");
+}
+
+async function checkProxy(proxyList) {
+    let checkedProxy = await Promise.all(proxyList.map(async (proxy) => {
+        let axiosInstance = axios.create({ httpsAgent: HttpsProxyAgent(proxy.ip) })
+        await axiosInstance.get("https://api64.ipify.org/?format=json")
+            .catch(err => {
+                console.log(`Proxy ${proxy.ip.split("@")[1]} check error: ${err?.response?.statusText}`)
+                switch (err?.response?.status) {
+                    case 407: proxy.authFailed = true;
+                    case 429: proxy.limited = true;
+                }
+            });
+        return proxy
+    }))
+
+    return checkedProxy.filter((proxy) => !proxy.limited && !proxy.authFailed);
 }
 
 async function requestSuiFromFaucet(proxy, recipient) {
@@ -61,6 +90,7 @@ async function requestSuiFromFaucet(proxy, recipient) {
         if (err?.response?.status == 429) {
             proxy.limited = true;
             console.log(`Proxy rate limited, need to wait ${err.response.headers['retry-after']} seconds`);
+            await timeout(5000)
         }
     })
 
@@ -85,9 +115,11 @@ async function mintNft(signer, args) {
 
 (async () => {
     let proxyList = parseFile('proxy.txt');
-    console.log(`Found ${proxyList.length} proxy`);
+    console.log(`Found ${proxyList.length} proxies`);
+    let validProxy = await checkProxy(proxyList);
+    validProxy.length == proxyList.length ? console.log('All proxies are valid') : console.log(`Valid ${validProxy.length}/${proxyList.length} proxies`);
 
-    if (proxyList.length > 0) {
+    if (validProxy.length > 0) {
         while (proxyList.every(proxy => !proxy.limited)) {
             for (let i = 0; i < proxyList.length; i++) {
                 try {
@@ -109,12 +141,12 @@ async function mintNft(signer, args) {
 
                         console.log(`Result: https://explorer.sui.io/addresses/${address}?network=testnet`);
                     }
-                    console.log("-".repeat(100));
                 } catch (err) {
                     console.log(err.message);
                     await timeout(10000)
                 }
+                console.log("-".repeat(100));
             }
         }
-    } else console.log('No working proxy found, please make sure the proxy is in the correct format');
+    } else console.log('No working proxies found, please make sure the proxy is in the correct format');
 })()
