@@ -120,14 +120,14 @@ async function mintNft(signer, args) {
     validProxy.length == proxyList.length ? console.log('All proxies are valid') : console.log(`Valid ${validProxy.length}/${proxyList.length} proxies`);
 
     if (validProxy.length > 0) {
-        while (proxyList.every(proxy => !proxy.limited)) {
-            for (let i = 0; i < proxyList.length; i++) {
+        while (validProxy.every(proxy => !proxy.limited)) {
+            for (let i = 0; i < validProxy.length; i++) {
                 try {
                     const mnemonic = bip39.generateMnemonic()
                     const keypair = Ed25519Keypair.deriveKeypair(mnemonic);
                     const address = keypair.getPublicKey().toSuiAddress()
 
-                    let response = await requestSuiFromFaucet(proxyList[i], address)
+                    let response = await requestSuiFromFaucet(validProxy[i], address)
 
                     if (response) {
                         console.log(`Sui Address: 0x${address}`)
